@@ -8,9 +8,13 @@ np.random.seed(42)
 
 # ---------- 1. DESIGN: how many samples do we need? ----------
 baseline_rate = 0.10        # control conversion rate (10%)
+# right now: 10 out of 100 convert
 mde = 0.02                  # minimum effect worth detecting (+2 points -> 12%)
-alpha = 0.05               # significance level (5% false-positive risk)
+# smallest improvement you'd bother shipping: +2 points → 12%
+alpha = 0.05               # significance level (5% false-positive risk) 
+# I'll tolerate making this mistake 5% of the time.
 power = 0.80               # 80% chance of detecting a real effect
+# When it really works, I want to catch it 80% of the time
 
 effect = proportion_effectsize(baseline_rate + mde, baseline_rate)
 n_needed = NormalIndPower().solve_power(effect_size=effect, alpha=alpha, power=power, alternative='larger')
