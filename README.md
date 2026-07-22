@@ -51,3 +51,35 @@ Why you'd decide to ship or not ship
 **Result:** **3,021 users per group** (~6,000 total).
 
 **Key takeaway:** Smaller effects need much bigger tests — halving the effect you want to detect roughly quadruples the sample size. "How small an effect do I care about vs. how much traffic do I have" is the entire design trade-off.
+
+
+## Section 2: Simulate — making fake users to practice on
+
+**Purpose:** Manufacture the test data. In a real experiment this comes from live traffic; here we generate it, so the project needs no external dataset.
+
+**The setup — we secretly decide the truth:**
+
+```python
+true_control   = 0.10   # version A converts 10% of the time
+true_treatment = 0.12   # version B is genuinely better, by 2 points
+```
+
+Setting `true_treatment = 0.12` serves two purposes:
+
+1. **Mechanical necessity** — the data generator needs a conversion weight to produce fake users. No number, no data.
+2. **Grading the method** — because *we* plant the truth ("B really is 2 points better"), Section 3 can be checked: did the statistics actually detect the effect we hid? Like hiding an object, then testing whether a metal detector finds it.
+
+**Generating the users:**
+
+```python
+control   = np.random.binomial(1, 0.10, 3021)
+treatment = np.random.binomial(1, 0.12, 3021)
+```
+
+`np.random.binomial(1, p, n)` = "flip a weighted coin n times." Each user is one flip: `1` = converted, `0` = didn't. The weight `p` sets how often the coin lands on "converted."
+
+**Subtle point:** the observed rates won't exactly equal the true rates — random luck blurs them. We set 0.10 / 0.12 but the data came out 0.099 / 0.114. That gap between "the truth we planted" and "what the data shows" is exactly what the analysis step must see through.
+
+**Key takeaway:** Fabricate two groups of users as coin flips, with B secretly better, so there's data to analyze and a way to grade whether the method catches the planted difference.
+
+> Note: In a real A/B test you never set the true rate — it's the unknown you're trying to uncover. Setting it here is only possible because this is a simulation.
