@@ -17,7 +17,9 @@ power = 0.80               # 80% chance of detecting a real effect
 # When it really works, I want to catch it 80% of the time
 
 effect = proportion_effectsize(baseline_rate + mde, baseline_rate)
+# turns "10% vs 12%" into a standardized "gap size"
 n_needed = NormalIndPower().solve_power(effect_size=effect, alpha=alpha, power=power, alternative='larger')
+# This function will help to solve for the sample size needed to detect that gap with the desired power and significance level.
 n_per_group = int(np.ceil(n_needed))
 print(f"Samples needed per group: {n_per_group}")
 
