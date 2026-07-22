@@ -83,3 +83,103 @@ treatment = np.random.binomial(1, 0.12, 3021)
 **Key takeaway:** Fabricate two groups of users as coin flips, with B secretly better, so there's data to analyze and a way to grade whether the method catches the planted difference.
 
 > Note: In a real A/B test you never set the true rate — it's the unknown you're trying to uncover. Setting it here is only possible because this is a simulation.
+
+
+
+If it were pure luck, a gap this big would appear 2.76% of the time" → probability about the data, given luck with p = 0.0276 and a high Ztest score
+
+
+## Section 3: Analyze — is the difference real?
+
+**Purpose:** Take the raw data and produce a verdict: ship the change or not. Flow: **count → test → describe → quantify uncertainty → decide.**
+
+### Step 1: Count the successes
+
+```python
+conv = np.array([control.sum(), treatment.sum()])   # [299, 345]
+obs  = np.array([n_per_group, n_per_group])          # [3021, 3021]
+```
+
+Boil each group down to conversions vs. total: 299/3021 (control) vs. 345/3021 (treatment).
+
+### Step 2: The z-test and p-value
+
+```python
+zstat, pval = proportions_ztest(conv, obs, alternative='smaller')   # p = 0.0276
+```
+
+The **z-test** measures the observed gap in units of "normal random jitter" (standard error). The **z-score** is how many jitters from zero the gap sits; a bigger z maps to a smaller p-value. The bar for "significant" at alpha = 0.05 is |z| ≥ 1.96.
+
+**Reading the p-value correctly:** *"If there were no real difference, a gap this big would appear only 2.76% of the time by chance."*
+
+Common trap — p = 0.0276 does **NOT** mean:
+- ❌ "97% chance the treatment works"
+- ❌ "2.76% chance the result is a fluke"
+- ✅ "If no real effect existed, data this extreme would show up 2.76% of the time"
+
+The p-value measures how surprising the data is *assuming no effect* — it never gives the probability that the hypothesis is true. (`alternative='smaller'` = one-sided test: "is treatment better?", not "is it different either way?")
+
+### Step 3: Describe in plain numbers
+
+```python
+c_rate, t_rate = control.mean(), treatment.mean()   # 0.099, 0.114
+lift = (t_rate - c_rate) / c_rate                    # 15.4%
+```
+
+`.mean()` of 0s and 1s = the conversion rate. **Lift** is the *relative* improvement (15.4%), vs. the *absolute* gap of ~1.5 points. Distinguishing absolute (+1.5 pts) from relative (+15%) matters — the relative number looks big only because the base is small.
+
+### Step 4: Confidence interval
+
+```python
+se = np.sqrt(c_rate*(1-c_rate)/n_per_group + t_rate*(1-t_rate)/n_per_group)
+diff = t_rate - c_rate                               # 0.015
+ci_low, ci_high = diff - 1.96*se, diff + 1.96*se     # [-0.000, 0.031]
+```
+
+The CI is the plausible range for the *true* gap: about −0.03 to +3.1 points. **It includes zero (barely)**, so "the change did nothing" is still a plausible truth.
+
+- Interval **includes zero** → can't rule out "no effect" → hesitate.
+- Interval **sits fully above zero** → even the worst case is an improvement → confident ship.
+
+### Step 5: The decision
+
+```python
+print("Decision:", "SHIP" if pval < alpha else "DO NOT SHIP")   # SHIP
+```
+
+Mechanically, p (0.0276) < alpha (0.05) → prints SHIP. But this is a **borderline** result: significant p, yet the CI grazes zero and z is near the 1.96 threshold. The real call is a business judgment — cheap/low-risk change: ship; expensive/risky: gather more data first.
+
+> Why p-value and CI seem to disagree: the p-value here is *one-sided* ("is B better?") while the CI is *two-sided* ("how different, either direction?"). Different questions, so in borderline cases they can land on opposite sides of the line.
+
+## Results (seed = 42)
+
+| Metric | Value |
+|--------|-------|
+| Samples needed per group | 3,021 |
+| Control conversion | 0.099 |
+| Treatment conversion | 0.114 |
+| Relative lift | 15.4% |
+| p-value | 0.0276 |
+| 95% CI on difference | [−0.000, 0.031] |
+| Decision | SHIP (borderline) |
+
+## Four things I can now explain
+
+1. **Sample size / power** — why you size a test *before* running it, and the two errors (false positive via alpha, false negative via power) that drive the number.
+2. **The p-value** — a measure of how surprising the data is *if there were no effect*, not the probability the hypothesis is true.
+3. **The confidence interval** — the plausible range for the true effect; whether it includes zero is what decides confidence.
+4. **Ship or not** — a business judgment, not a blind `p < 0.05`; a borderline CI means the evidence is thin.
+
+## Possible extensions
+
+- **Peeking:** check for significance repeatedly as data arrives (with no real effect) and watch the false-positive rate climb past 5% — shows why you don't stop a test early.
+- **Empirical power:** rerun the whole experiment ~1,000 times with a real effect and confirm you catch it ~80% of the time — makes "80% power" concrete.
+
+## How to run
+
+```bash
+pip install numpy pandas scipy statsmodels
+python ab_test.py
+```
+
+No data required — the script simulates its own. Runs in seconds.
