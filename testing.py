@@ -29,6 +29,7 @@ print(f"Samples needed per group: {n_per_group}")
 
 
 
+
 # ---------- 2. SIMULATE the experiment ----------
 ##################################################
 
@@ -41,18 +42,33 @@ treatment = np.random.binomial(1, true_treatment, n_per_group)
 # will generate a random sample of 0s and 1s, where 1 represents a conversion, for the treatment group, i.e. 12% would be 1.
 
 
+
+
 # ---------- 3. ANALYZE: is the difference significant? ----------
 ##################################################################
 
+# Here the purpose is whether the gap between the two groups is real or just luck.
+# how many converted and how many total
 conv = np.array([control.sum(), treatment.sum()])
 obs = np.array([n_per_group, n_per_group])
-zstat, pval = proportions_ztest(conv, obs, alternative='smaller')
 
+# This is the significant test
+zstat, pval = proportions_ztest(conv, obs, alternative='smaller')
+# It will show "is this gap bigger than luck would normally produce?"
+# It will return a z-statistic and a p-value. 
+# The p-value is the probability of seeing a gap this big (or bigger) if the two groups were actually the same.
+# if there was luck or there were no real effect, there is only 2.76% chance that the gap would be this big. 
+
+
+#  Computing the conversion rates and the relative lift
 c_rate, t_rate = control.mean(), treatment.mean()
 lift = (t_rate - c_rate) / c_rate
+# lift will say treatment is 15.4% better than control
 
+# Build the confidence interval
 # 95% confidence interval on the difference
 se = np.sqrt(c_rate*(1-c_rate)/n_per_group + t_rate*(1-t_rate)/n_per_group)
+# Standard error of the difference between two proportions, how much gap would wobble around if we repeated the experiment many times.
 diff = t_rate - c_rate
 ci_low, ci_high = diff - 1.96*se, diff + 1.96*se
 
@@ -60,4 +76,10 @@ print(f"Control: {c_rate:.3f}  Treatment: {t_rate:.3f}")
 print(f"Relative lift: {lift:.1%}")
 print(f"p-value: {pval:.4f}")
 print(f"95% CI on difference: [{ci_low:.3f}, {ci_high:.3f}]")
+
+# The decision
 print("Decision:", "SHIP" if pval < alpha else "DO NOT SHIP")
+
+# with CI
+# Zero gap = B and A convert at the same rate = the change did nothing.
+# That interval excludes zero, so "B is no better" is not on the board
